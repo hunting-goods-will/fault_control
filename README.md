@@ -1,4 +1,4 @@
-# Actuator Fault Control — Rate-Limited, Sensor-Validated Torque Control
+# Actuator Fault Control: Rate-Limited, Sensor-Validated Torque Control
 
 > Status: in progress. This README is a scaffold — sections below get filled in as the
 > project lands (see the `main` branch commit history for how it actually developed).
@@ -15,11 +15,10 @@ reported as a distribution (mean ± std over n trials) rather than a single run.
 
 ## Motivation
 
-The type of fix here — clamping how fast commanded torque can change, and cross-checking
-against a simulated sensor reading before applying it — generalizes a control pattern from
-actuator-fault handling in real hardware research. The joint model, masses, and all
-numeric parameters in this repo are invented for this project; no data, results, or
-specifics from that research are reused here.
+The type of fix here is clamping how fast commanded torque can change, and cross-checking
+against a simulated sensor reading before applying it, generalizes a control pattern from
+actuator-fault handling in hardware research. The joint model, masses, and all
+numeric parameters in this repo are invented for this project.
 
 ## Method
 
