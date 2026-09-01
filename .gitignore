@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Isaac Sim / Isaac Lab
+IsaacLab/
+*.usd.bak
+_isaac_sim/
+kit_*.log
+*.log
+
+# MuJoCo (if fallback path is used)
+*.mjb
+
+# Large/generated outputs
+results/raw/
+results/checkpoints/
+*.npz
+*.h5
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env/secrets
+.env
