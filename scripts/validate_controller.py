@@ -1,13 +1,12 @@
-"""Day 3 validation: paired comparison of baseline vs rate_limited trials.
+"""Paired comparison of baseline vs rate_limited trials.
 
-This is the required check before committing Day 3 (see HANDOFF_DAY3.md step 4) --
-NOT the Day 4 stats/plots script. It only confirms the two headline claims:
+The required check before trusting the rate-limited controller's results: confirms
 peak overshoot is lower under rate limiting, and settling time is shorter or
 comparable, across the 64 paired trials. Pure numpy -- no Isaac Sim needed, so
 this can run anywhere, including outside the isaaclab environment.
 
 Usage:
-    python scripts/validate_day3.py
+    python scripts/validate_controller.py
 """
 
 import numpy as np

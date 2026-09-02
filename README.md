@@ -10,16 +10,16 @@ randomized trials.
 Baseline (uncontrolled) and rate-limited (fixed) controllers are each run across a batch of 64
 parallel trials with randomized fault-torque magnitude, paired so both controllers see the
 identical sampled fault torques (same seed, same sampling call, before either mode branches).
-Results are reported as a distribution across the 64 paired trials, not a single run — see
+Results are reported as a distribution across the 64 paired trials, not a single run. See
 Results below.
 
 ## Motivation
 
-The type of fix here — clamping how fast commanded torque can change, and cross-checking
-against a simulated sensor reading before applying it — generalizes a control pattern from
+Clamping how fast commanded torque can change, and cross-checking
+against a simulated sensor reading before applying it generalizes a control pattern from actual
 actuator-fault handling in hardware research. The joint model, masses, and all numeric
 parameters in this repo are invented for this project, chosen to be physically plausible and
-documented as such, not pulled from any real system.
+documented as such.
 
 ## Method
 
@@ -37,7 +37,7 @@ fixed base:
 | Trials | n = 64, paired across both controllers |
 | Trial duration | 5.0 s |
 
-The fault-torque range is bounded by the max gravity restoring torque — above ≈0.736 N·m no
+The fault-torque range is bounded by the max gravity restoring torque, above ≈0.736 N·m no
 static equilibrium exists and the arm just spins continuously, so 0.2–0.6 N·m keeps every trial
 in the swing-and-settle regime the project is about.
 
@@ -52,7 +52,7 @@ in the swing-and-settle regime the project is about.
   if they diverge by more than `SENSOR_VALIDATION_THRESHOLD = 0.1 N·m`, the controller holds the
   last accepted command instead of applying the new one. Both constants are derived from the
   system's own physics (natural-frequency estimate and observed peak joint velocity
-  respectively) rather than tuned to the outcome — full derivation is documented inline in
+  respectively) rather than tuned to the outcome. The full derivation is documented inline in
   `run_trials.py`.
 
 **Validation** (`scripts/validate_controller.py`) checks, per paired trial: peak overshoot lower
@@ -71,12 +71,12 @@ n = 64 paired trials, fault torque 0.2–0.6 N·m uniform, seed 42.
 | Mean | 0.300 rad | 0.213 rad |
 
 Per-trial reduction: **22.5% ± 21.7%** (mean ± std across the 64 trials), lower in 64/64 trials.
-The benefit scales with fault severity — it is not a flat percentage. It's a real, continuous,
+The benefit scales with fault severity, meaning it is not a flat percentage. It's a continuous,
 nonlinear relationship with fault-torque magnitude (Pearson r = 0.90 against fault torque),
 climbing from single digits at low fault torque to >55% reduction near the top of the tested
 range, with a sharp knee around fault_torque≈0.42 N·m. This was independently confirmed with a
 from-scratch numerical reproduction of the exact system (same equations, same control logic,
-same timestep) — see Limitations — so it isn't an artifact of one simulation run.
+same timestep) — see Limitations — so it isn't an leftover of one simulation run.
 
 **Settling time** (2%-of-equilibrium tolerance band)
 
@@ -84,21 +84,21 @@ same timestep) — see Limitations — so it isn't an artifact of one simulation
 |---|---|---|
 | Mean | 2.367 s | 2.293 s |
 
-Per-trial change: 2.7% ± 8.2%, comparable-or-better in 64/64 trials — but only **23/64 (36%)
+Per-trial change: 2.7% ± 8.2%, comparable-or-better in 64/64 trials, but only **23/64 (36%)
 trials were actually strictly faster**; the remaining 41/64 were flat or slightly slower and
 only counted as "comparable" under a 5% tolerance. **This metric has a confirmed discontinuity
 for underdamped systems** (see Limitations) and should be treated as noisier and less trustworthy
-than the overshoot result — the apparent large jump in benefit near fault_torque≈0.47–0.6 N·m is
-not strong evidence of a real, larger controller benefit in that range.
+than the overshoot result. The apparent large jump in benefit near fault_torque≈0.47–0.6 N·m is
+not strong evidence of a larger controller benefit in that range.
 
-**Sensor validation**: held (rejected) 1,166 / 38,400 step-trial pairs (3.0%) — engaging during
+**Sensor validation**: held (rejected) 1,166 / 38,400 step-trial pairs (3.0%). Engaging during
 the fast part of the swing specifically (consistent with the actual peak joint velocity measured
 in the baseline data, 3.93 rad/s), not constant and not dead code.
 
 **Plots**: `results/comparison_plots.png` — paired boxplots for both metrics, plus fault-torque
 scatter plots with linear fits. Note: the settling-time scatter's linear fit is misleading given
 the discontinuity described in Limitations; the overshoot fit is a reasonable, if imperfect,
-description of a genuinely nonlinear (not linear) relationship.
+description of a nonlinear relationship.
 
 ## Repository Structure
 
@@ -106,9 +106,6 @@ description of a genuinely nonlinear (not linear) relationship.
 fault_control/
 ├── README.md
 ├── LICENSE
-├── SESSION_LOG_1.md            # Day 0-2 development log: environment install,
-│                                # asset/physics debugging, full detail kept intentionally
-├── HANDOFF_DAY3.md              # Day 3 planning/handoff notes
 ├── assets/
 │   └── single_joint_actuator.usda
 ├── scripts/
@@ -171,10 +168,12 @@ python scripts/plot_results.py
   angle grows) -- though the exact mechanism wasn't rigorously isolated beyond ruling out a
   peak-switching artifact as the cause.
 - Getting the simulation itself correct took substantial debugging before any control work
-  started -- a ground-plane spawn bug that looked like incorrect physics, a missing `DriveAPI`
-  that silently no-opped every torque command, an invented git tag that didn't exist, among
-  others. Documented in full in `SESSION_LOG_1.md` rather than hidden, consistent with the
-  project's approach throughout.
+  started, worth naming rather than glossing over: the articulation was initially spawning at
+  the ground plane, which made a ground-contact interaction look like incorrect pendulum physics
+  until it was caught via a viewport screenshot; a missing `DriveAPI` on the hand-authored USD
+  joint silently no-opped every torque command; an early Isaac Lab git tag reference turned out
+  to be invented (hallucinated from a pip version string) rather than a real release tag. None of
+  this is hidden — it's part of how the project actually came together.
 
 ## License
 
