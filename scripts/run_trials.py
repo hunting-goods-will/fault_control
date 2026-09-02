@@ -36,11 +36,15 @@ from isaaclab.scene import InteractiveScene, InteractiveSceneCfg
 from isaaclab.sim import SimulationContext
 from isaaclab.utils import configclass
 
-ASSET_PATH = os.path.join(os.path.dirname(__file__), "..", "assets", "single_joint_actuator.usd")
+ASSET_PATH = os.path.join(os.path.dirname(__file__), "..", "assets", "single_joint_actuator.usda")
 
-# Fault torque range (N*m) -- see README for reasoning
-FAULT_TORQUE_MIN = 3.0
-FAULT_TORQUE_MAX = 10.0
+# Fault torque range (N*m) -- see README for reasoning.
+# Max gravity restoring torque on this arm is m*g*(L/2) = 0.5*9.81*0.15 ~ 0.74 N*m.
+# Keeping the fault range comfortably under that so a real equilibrium exists
+# for every sampled trial (equilibrium angle = arcsin(tau / 0.74)):
+#   0.2 N*m -> ~16 deg,  0.6 N*m -> ~55 deg
+FAULT_TORQUE_MIN = 0.2
+FAULT_TORQUE_MAX = 0.6
 
 # Actuator config -- the single source of truth for stiffness/damping/limits.
 # stiffness=0.0 -> pure torque/effort control, no implicit position drive.
@@ -53,19 +57,25 @@ SINGLE_JOINT_CFG = ArticulationCfg(
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,
+            sleep_threshold=0.0,
         ),
         articulation_props=sim_utils.ArticulationRootPropertiesCfg(
             enabled_self_collisions=False,
             solver_position_iteration_count=8,
             solver_velocity_iteration_count=0,
+            sleep_threshold=0.0,
+            stabilization_threshold=0.0,
         ),
     ),
-    init_state=ArticulationCfg.InitialStateCfg(joint_pos={"PivotJoint": 0.0}),
+    init_state=ArticulationCfg.InitialStateCfg(
+        pos=(0.0, 0.0, 0.5),  # clear of the ground -- arm hangs 0.3 m below the pivot
+        joint_pos={"PivotJoint": 0.0},
+    ),
     actuators={
         "pivot": ImplicitActuatorCfg(
             joint_names_expr=["PivotJoint"],
-            effort_limit=50.0,
-            velocity_limit=20.0,
+            effort_limit_sim=50.0,
+            velocity_limit_sim=20.0,
             stiffness=0.0,
             damping=JOINT_DAMPING,
         ),
@@ -104,7 +114,7 @@ def run_baseline(sim: SimulationContext, scene: InteractiveScene, fault_torque: 
     robot.write_root_velocity_to_sim(root_state[:, 7:])
     scene.reset()
 
-    commanded = fault_torque.unsqueeze(-1)  # [num_envs, 1] -- constant from t=0
+    commanded = fault_torque.to(robot.data.joint_pos.device).unsqueeze(-1)
 
     for step in range(num_steps):
         robot.set_joint_effort_target(commanded)
@@ -112,9 +122,9 @@ def run_baseline(sim: SimulationContext, scene: InteractiveScene, fault_torque: 
         sim.step()
         scene.update(sim_dt)
 
-        joint_pos_log[:, step] = robot.data.joint_pos[:, 0]
-        joint_vel_log[:, step] = robot.data.joint_vel[:, 0]
-        torque_log[:, step] = commanded[:, 0]
+        joint_pos_log[:, step] = robot.data.joint_pos[:, 0].cpu()
+        joint_vel_log[:, step] = robot.data.joint_vel[:, 0].cpu()
+        torque_log[:, step] = commanded[:, 0].cpu()
 
     return joint_pos_log, joint_vel_log, torque_log
 
@@ -124,7 +134,7 @@ def main():
 
     sim_cfg = sim_utils.SimulationCfg(dt=1.0 / 120.0, device=args_cli.device)
     sim = SimulationContext(sim_cfg)
-    sim.set_camera_view([1.0, 1.0, 0.5], [0.0, 0.0, -0.15])
+    sim.set_camera_view([1.5, 1.5, 1.0], [0.0, 0.0, 0.35])
 
     scene_cfg = SingleJointSceneCfg(num_envs=args_cli.num_envs, env_spacing=1.0)
     scene = InteractiveScene(scene_cfg)
