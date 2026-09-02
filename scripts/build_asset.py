@@ -53,11 +53,13 @@ ARM_RADIUS = 0.02  # m
 ARM_MASS = 0.5  # kg
 BASE_MASS = 1.0  # kg -- fixed body, magnitude doesn't matter dynamically
 
-OUT_PATH = os.path.join(os.path.dirname(__file__), "..", "assets", "single_joint_actuator.usd")
+OUT_PATH = os.path.join(os.path.dirname(__file__), "..", "assets", "single_joint_actuator.usda")
 
 
 def build() -> None:
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
+    if os.path.exists(OUT_PATH):
+        os.remove(OUT_PATH)  # Usd.Stage.CreateNew refuses to overwrite an existing layer
 
     stage = Usd.Stage.CreateNew(OUT_PATH)
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
@@ -101,6 +103,16 @@ def build() -> None:
     joint.CreateBody1Rel().SetTargets([arm_path])
     joint.CreateLocalPos0Attr().Set(Gf.Vec3f(0.0, 0.0, 0.0))
     joint.CreateLocalPos1Attr().Set(Gf.Vec3f(0.0, 0.0, ARM_LENGTH / 2.0))
+
+    # Placeholder drive so PhysX/Isaac Lab recognizes this joint as actuated at
+    # all -- an ImplicitActuatorCfg at spawn time appears to *configure* an
+    # existing drive rather than create one from scratch. Values here don't
+    # matter; run_trials.py's ImplicitActuatorCfg overrides them.
+    drive = UsdPhysics.DriveAPI.Apply(joint.GetPrim(), "angular")
+    drive.CreateTypeAttr("force")
+    drive.CreateStiffnessAttr(0.0)
+    drive.CreateDampingAttr(0.0)
+    drive.CreateMaxForceAttr(1.0e6)
 
     stage.GetRootLayer().Save()
     print(f"[INFO] Wrote asset to {OUT_PATH}")
