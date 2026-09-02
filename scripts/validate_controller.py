@@ -37,6 +37,33 @@ def peak_overshoot(joint_pos: np.ndarray, theta_eq: float) -> float:
     return max(0.0, theta_eq - float(joint_pos.min()))
 
 
+def correlate_with_fault_torque(fault_torque: np.ndarray, values: np.ndarray, label: str, n_bins: int = 4) -> None:
+    """Prints Pearson r, a linear fit slope, and a quartile-binned mean/std breakdown of
+    `values` (e.g. per-trial % change) against fault_torque. numpy-only, no scipy.
+
+    Quartile means matter more than r alone at n=64 -- r can look unremarkable while a
+    binned breakdown still shows a clean monotonic trend, or vice versa (r inflated by a
+    couple outlier trials). Report both, don't pick whichever looks better.
+    """
+    r = float(np.corrcoef(fault_torque, values)[0, 1])
+    slope, intercept = np.polyfit(fault_torque, values, 1)
+
+    order = np.argsort(fault_torque)
+    bin_edges = np.array_split(order, n_bins)
+    bin_labels = []
+    bin_means = []
+    bin_stds = []
+    for b in bin_edges:
+        lo, hi = fault_torque[b].min(), fault_torque[b].max()
+        bin_labels.append(f"{lo:.2f}-{hi:.2f} N*m")
+        bin_means.append(values[b].mean())
+        bin_stds.append(values[b].std())
+
+    print(f"  {label} vs fault_torque: r={r:.2f}, slope={slope:.1f} %/N*m")
+    for lbl, m, s in zip(bin_labels, bin_means, bin_stds):
+        print(f"    [{lbl}]  mean {m:+.1f}%  std {s:.1f}%")
+
+
 def main():
     baseline = np.load("results/raw/baseline_trials.npz")
     rate_limited = np.load("results/raw/rate_limited_trials.npz")
@@ -91,6 +118,10 @@ def main():
           f"rate_limited: {settle_rl.mean():.3f} s")
     print(f"  per-trial % change: mean {settle_pct_change.mean():.1f}%, "
           f"std {settle_pct_change.std():.1f}% (positive = faster)")
+
+    print("\nRelationship to fault magnitude (does the benefit scale with fault_torque?):")
+    correlate_with_fault_torque(fault_torque, overshoot_pct_change, "overshoot reduction")
+    correlate_with_fault_torque(fault_torque, settle_pct_change, "settling time change")
 
     if "held" in rate_limited:
         held = rate_limited["held"]
